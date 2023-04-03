@@ -1,0 +1,71 @@
+---
+title: "PCA_MCA"
+format: html
+editor: visual
+---
+
+Importation des librairies.
+
+```{r}
+library(ggplot2)
+library(FactoMineR)
+
+set.seed(42)
+
+# Load data
+df <- read.csv("bank_additional_clean.csv")
+
+```
+
+## ACP
+
+On effectue l'ACP sur les variables numériques qui représentent des indicateurs financiers pour observer les corrélations entre ces indicateurs. Ce sont tous des variables numériques.
+
+Chargement des données:
+
+```{r}
+# Select only usefull columns
+column_pca <- c("emp.var.rate", "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed")
+df_pca <- df[column_pca]
+
+# Do the PCA
+ndim_pca <- ncol(df_pca)
+res_pca <- PCA(df_pca, ncp = ndim_pca, scale.unit = TRUE, graph = FALSE)
+plot.PCA(res_pca, choix="var", title = "", cex=0.7)
+# ggsave("pca.jpeg", device = "jpeg", dpi = 500)
+```
+
+On peut observer que la majorité des indicateurs de marché sont très corrélés entre-eur, mis à partla variable cons.conf.index qui est l'indice de confiance des consomateurs. Aussi, les deux premières dimentions expliquent 89 % de la variabilité dans les données.
+
+## FAMD
+
+On effectue la FAMD sur les variables décrivant les clients de la banque. Ce sont pour la pluspart des variables catégorielles, sauf l'âge qui est une variable numérique et l'éducation qui est une variable ordinale. Cependant, l'éducation est traitée comme variable catégorielle dans la FAMD.
+
+On ne visualise pas toutes las modalités car le graphique résultant ne serait pas lisible.
+
+```{r}
+# Select only usefull columns
+column_famd <- c("age", "job", "marital", "education", "housing", "loan")
+df_famd <- df[column_famd]
+df_famd <- na.omit(df_famd)
+
+# Do the FAMD
+ndim_famd <- 100
+res_famd <- FAMD(df_famd, ncp = ndim_famd, graph = FALSE)
+plot.FAMD(res_famd, choix="var", title = "")
+# ggsave("famd_var.jpeg", device = "jpeg", dpi = 500)
+
+# Plot cumulative variance
+eigen <- as.data.frame(res_famd$eig)
+rownames(eigen) <- NULL
+colnames(eigen) <- c("eigenvalue",  "percentage_of_variance", "cumulative_percentage_of_variance")
+eigen["number"] <- as.integer(rownames(eigen))
+
+ggplot(data = eigen) +
+  geom_point(aes(x = number, y = cumulative_percentage_of_variance)) +
+  xlab('Nombre de dimensions conservées') +
+  ylab('Variance cumulée (%)')
+# ggsave("famd_cumul.jpeg", device = "jpeg", dpi = 500)
+```
+
+On observe que dans les deux premières dimentions, la variable housing et loan sont très près les unes des autres, ce qui n'est pas surprenant car les personnes qui ont un hypothèque ont plus de chances d'avoir un autre prêt à la banque. On remarque aussi que la variance cumulée n'augmente pas beaucoup lorsqu'on augmente le nombre de dimentions conservées.
