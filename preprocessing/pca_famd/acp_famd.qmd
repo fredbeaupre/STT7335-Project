@@ -13,7 +13,7 @@ library(FactoMineR)
 set.seed(42)
 
 # Load data
-df <- read.csv("bank_additional_clean.csv")
+df <- read.csv("bank_additional_clean.csv", na=c(""))
 
 ```
 
@@ -31,7 +31,7 @@ df_pca <- df[column_pca]
 # Do the PCA
 ndim_pca <- ncol(df_pca)
 res_pca <- PCA(df_pca, ncp = ndim_pca, scale.unit = TRUE, graph = FALSE)
-plot.PCA(res_pca, choix="var", title = "", cex=0.7)
+plot.PCA(res_pca, choix="var", title = "", cex=0.7, autoLab="yes")
 # ggsave("pca.jpeg", device = "jpeg", dpi = 500)
 ```
 
@@ -63,7 +63,7 @@ eigen["number"] <- as.integer(rownames(eigen))
 
 ggplot(data = eigen) +
   geom_point(aes(x = number, y = cumulative_percentage_of_variance)) +
-  xlab('Nombre de dimensions conservées') +
+  xlab('Nombre de facteurs conservés') +
   ylab('Variance cumulée (%)')
 # ggsave("famd_cumul.jpeg", device = "jpeg", dpi = 500)
 ```

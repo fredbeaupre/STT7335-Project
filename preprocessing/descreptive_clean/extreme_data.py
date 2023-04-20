@@ -39,10 +39,14 @@ df.drop(columns="duplicated", inplace=True)
 df.drop(columns=["default", "contact", "month", "day_of_week", "duration", "campaign", "pdays", "previous", "poutcome"],
         inplace=True)
 
-
+# dfna1 = df[df.isna().any(axis=1)]
+# print(dfna1.head().to_string())
 # Changer les "unknown" par des objets pd.NA
 for column_name in df.columns:
     df[column_name] = df[column_name].map(map_unknown)
+# dfna2 = df[df.isna().any(axis=1)]
+# print(dfna2.head().to_string())
+print("Nb rows with NA : ", len(df[df.isna().any(axis=1)].index))
 
 
 # # Changer pdays 999 à -1 pour visualisation
@@ -84,6 +88,8 @@ plt.show()
 map_education = {'illiterate': 1, 'basic.4y': 2, 'basic.6y': 3, 'basic.9y': 4, 'high.school': 5,
                  'professional.course': 6, 'university.degree': 7, pd.NA: pd.NA}
 df["education"] = df["education"].map(map_education)
+# dfna3 = df[df.isna().any(axis=1)]
+# print(dfna3.head().to_string())
 
 
 # Save formated data
