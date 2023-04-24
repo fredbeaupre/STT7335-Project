@@ -5,30 +5,54 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from random import sample
+import numpy as np
 
 
 def yes_no_to_number(value):
-    return 1. if value == 'yes' else 0.
+    if value == 'yes':
+        retour = 1
+    elif value == "no":
+        retour = 0
+    else:
+        retour = np.nan
+    return retour
+
+
+def retrieve_dummy_na(df):
+    list_col_na = list()
+    for colname in df.columns:
+        if colname.endswith("_nan"):
+            list_col_na.append(colname)
+            real_colname = colname.removesuffix('_nan')
+            for colname2 in df.columns:
+                if real_colname in colname2 and colname != colname2:
+                    df.loc[df[colname] == 1, [colname2]] = np.nan
+    df.drop(columns=list_col_na, inplace=True)
 
 
 def transform_bank_data(df, drop_na=False, scaler=None):
     if drop_na is True:
         df.dropna(inplace=True)
+
     # Convert binary variables to 0-1
     df["y"] = df["y"].map(yes_no_to_number)
     df["loan"] = df["loan"].map(yes_no_to_number)
     df["housing"] = df["housing"].map(yes_no_to_number)
 
+    # Dummy variables for categorical vars
     targets = df['y']
     df = df.drop(columns=["y"])
-    data = pd.get_dummies(df, drop_first=False)
+    data = pd.get_dummies(df, drop_first=False, dummy_na=True)
+    retrieve_dummy_na(data)
 
     # Scale data between 0-1
     if scaler is None:
         scaler = MinMaxScaler()
         scaler.fit(data)
     data = pd.DataFrame(scaler.transform(data), columns=data.columns)
-    print(type(data))
+
+    if drop_na is False:
+        data.fillna(value=0, inplace=True)
 
     return data, targets, scaler
 
