@@ -53,7 +53,7 @@ class FeedForwardNet(torch.nn.Module):
             [torch.nn.Dropout(size) for size in lin_layer_dropouts]
         )
 
-    def forward(self, cont_data, cat_data):
+    def forward(self, cont_data, cat_data, mask_cont=None, mask_cat=None):
         if self.num_embeds != 0:
             x = [emb_layer(cat_data[:, i])
                  for i, emb_layer in enumerate(self.embedding_layers)]
