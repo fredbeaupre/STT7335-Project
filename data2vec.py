@@ -13,6 +13,8 @@ class Data2Vec(torch.nn.Module):
         self.ema_end_decay = 0.9999
         self.ema_anneal_end_step = 300000
 
+        self.fc = torch.nn.Linear(16, 1)
+
     def ema_step(self):
         if self.ema_decay != self.ema_end_decay:
             if self.ema.num_updates >= self.ema_anneal_end_step:
@@ -28,17 +30,19 @@ class Data2Vec(torch.nn.Module):
         if self.ema_decay < 1:
             self.ema.step(self.encoder)
 
-    def forward(self, cont_x, cat_x, target=None, mask_cont=None, mask_cat=None, task="distill"):
-        x = self.encoder(cont_x, cat_x, mask_cont, mask_cat)
+    def forward(self, cont_x, cat_x, target=None, task="distillation"):
         if task == "classification":
             # TODO: add classification head
-            pass
+            x = self.encoder(cont_x, cat_x, mask=False)
+            x = torch.sigmoid(self.fc(x))
+            return x
 
         elif task == "reconstruction":
             # TODO: reconstruction decoder
             pass
 
-        elif task == "distill":
+        elif task == "distillation":
+            x = self.encoder(cont_x, cat_x, mask=True)
             with torch.no_grad():
                 self.ema.model.eval()
                 y = self.ema.model(cont_x, cat_x)

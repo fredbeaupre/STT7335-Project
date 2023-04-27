@@ -7,4 +7,4 @@
 
 source ~/ad/bin/activate
 
-python train_distill.py
+python embeddings.py

@@ -6,6 +6,7 @@ import yaml
 import torch
 from data import TabularBankDataset
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 
 def yes_no_to_number(value):
@@ -15,6 +16,25 @@ def yes_no_to_number(value):
         return 0
     else:
         return np.nan
+
+
+class AverageMeter:
+    """Computes and stores the average and current value"""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
 
 
 class SaveBestModel:
@@ -27,6 +47,18 @@ class SaveBestModel:
     def __call__(self, current_val, epoch, model, optimizer, criterion=None):
         if self.maximize:
             if current_val > self.best_metric_val:
+                self.best_metric_val = current_val
+                print(f"Best {self.metric_name}: {self.best_metric_val}")
+                print(
+                    f"Saving best model for epoch: {epoch + 1} at {self.save_dir}\n")
+                torch.save({
+                    "epoch": epoch+1,
+                    "model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "loss": criterion,
+                }, "{}/best_model.pth".format(self.save_dir))
+        else:
+            if current_val < self.best_metric_val:
                 self.best_metric_val = current_val
                 print(f"Best {self.metric_name}: {self.best_metric_val}")
                 print(
@@ -60,13 +92,45 @@ def load_csv_to_pandas(datapath="./bank-additional-full.csv", drop_na=True):
     return df
 
 
-def create_dataloader(path="./bank_additional_full.csv"):
+def create_dataloaders(path="./bank_additional_full.csv"):
     data = load_csv_to_pandas()
-    dataset = TabularBankDataset(
-        data=data,
-    )
+    train_data, val_data, test_data = split_dataset(data)
+    train_set = TabularBankDataset(data=train_data)
+    val_set = TabularBankDataset(data=val_data)
+    test_set = TabularBankDataset(data=test_data)
+    emb_dims_train = train_set.get_emb_dims()
+    emb_dims_val = val_set.get_emb_dims()
+    emb_dims_test = test_set.get_emb_dims()
+    batch_size = 512
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    val_loader = torch.utils.data.DataLoader(
+        val_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    return (train_loader, val_loader, test_loader), (emb_dims_train, emb_dims_val, emb_dims_test)
+
+
+def omniloader(path="./bank_additional_full.csv"):
+    data = load_csv_to_pandas()
+    dataset = TabularBankDataset(data=data)
     emb_dims = dataset.get_emb_dims()
     batch_size = 512
-    trainloader = torch.utils.data.DataLoader(
+    dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
-    return trainloader, emb_dims
+    return dataloader, emb_dims
+
+
+def split_dataset(dataset):
+    N_train = dataset.shape[0]
+    N_test = int(N_train * 0.20)
+    N_val = int(N_train * 0.30)
+
+    # sample the test set
+    test_set = dataset.sample(n=N_test)
+    # remove test set from train set
+    train_set = pd.concat([dataset, test_set]).drop_duplicates(keep=False)
+    # sampe validation set
+    val_set = train_set.sample(n=N_val)
+    train_set = pd.concat([train_set, val_set]).drop_duplicates(keep=False)
+    return train_set, val_set, test_set

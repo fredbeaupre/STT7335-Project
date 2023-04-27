@@ -53,7 +53,7 @@ class FeedForwardNet(torch.nn.Module):
             [torch.nn.Dropout(size) for size in lin_layer_dropouts]
         )
 
-    def forward(self, cont_data, cat_data, mask_cont=None, mask_cat=None):
+    def forward(self, cont_data, cat_data, mask=False):
         if self.num_embeds != 0:
             x = [emb_layer(cat_data[:, i])
                  for i, emb_layer in enumerate(self.embedding_layers)]
@@ -68,6 +68,11 @@ class FeedForwardNet(torch.nn.Module):
             else:
                 x = normalized_cont_data
 
+        if mask:  # Apply mask to input if in student mode (mask=True)
+            mask_shape = int(x.shape[1] * 0.50)
+            for i in range(x.shape[0]):
+                random_idx = np.random.randint(x.shape[1] - mask_shape)
+                x[i][random_idx:random_idx+mask_shape] = 0
         for lin_layer, dropout_layer, bn_layer in zip(
             self.lin_layers, self.dropout_layers, self.batch_norms
         ):
