@@ -95,6 +95,7 @@ def load_csv_to_pandas(datapath="./bank-additional-full.csv", drop_na=True):
 def create_dataloaders(path="./bank_additional_full.csv"):
     data = load_csv_to_pandas()
     train_data, val_data, test_data = split_dataset(data)
+    test_data.to_csv("test_data.csv", index=False)
     train_set = TabularBankDataset(data=train_data)
     val_set = TabularBankDataset(data=val_data)
     test_set = TabularBankDataset(data=test_data)

@@ -73,16 +73,17 @@ def train(model, train_loader, validation_loader, optimizer, criterion, num_epoc
         print(f"---> Epoch {epoch + 1} validation loss: {v_loss}")
         print(f"---> Epoch {epoch + 1} validation accuracy: {v_acc}")
         save_best_model(v_acc, epoch, model, optimizer, criterion=criterion)
-    return train_loss, val_loss
+    return (train_loss, train_acc), (val_loss, val_acc)
 
 
 def evaluate(model, test_loader, device):
     model.eval()
     all_preds = []
     all_labels = []
-    for y, cont_x, cat_x in tqdm(test_loader, des="Testing..."):
+    for y, cont_x, cat_x in tqdm(test_loader, desc="Testing..."):
         y, cont_x, cat_x = y.to(device), cont_x.to(device), cat_x.to(device)
         yhat = model(cont_x, cat_x, task="classification")
+        yhat = torch.tensor(yhat > 0.5)
         all_preds.append(yhat)
         all_labels.append(y)
     all_preds = torch.cat(all_preds, dim=0)
@@ -92,7 +93,7 @@ def evaluate(model, test_loader, device):
 
 
 def conclude(save_dict):
-    torch.save("./saved_models/data2vec_classification/final_model.pth")
+    torch.save(save_dict, "./saved_models/data2vec_classification/final_model.pth")
     loss = save_dict["loss"]
     val_loss = save_dict["val_loss"]
     acc = save_dict["acc"]
@@ -115,7 +116,7 @@ def conclude(save_dict):
 
 
 def main():
-    num_epochs = 500
+    num_epochs = 100
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     loaders, emb_dims = utils.create_dataloaders()
     train_loader, val_loader, test_loader = loaders
@@ -146,7 +147,7 @@ def main():
         "optimizer_state_dict": optimizer.state_dict(),
         "loss": train_loss,
         "val_loss": val_loss,
-        "train_acc": train_acc,
+        "acc": train_acc,
         "val_acc": val_acc,
     }
     conclude(save_dict)
@@ -154,7 +155,7 @@ def main():
     # TODO: reload best checkpoint and evaluate
     eval_checkpoint = torch.load(
         "./saved_models/data2vec_classification/best_model.pth")
-    model.load_state_dict(checkpoint["model_state_dict"])
+    model.load_state_dict(eval_checkpoint["model_state_dict"])
     test_accuracy = evaluate(model, test_loader, device)
     print("Accuracy on the test set = {}".format(round(test_accuracy, 3)))
 
