@@ -21,4 +21,4 @@ plt.ylabel("Dim. 2 embedding")
 plt.tight_layout()
 
 plt.show()
-# plt.savefig("embedding_train.jpeg", format="jpeg", dpi=500)
+# plt.savefig("embedding_plot.jpeg", format="jpeg", dpi=500)

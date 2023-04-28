@@ -69,3 +69,57 @@ ggplot(data = eigen) +
 ```
 
 On observe que dans les deux premières dimentions, la variable housing et loan sont très près les unes des autres, ce qui n'est pas surprenant car les personnes qui ont un hypothèque ont plus de chances d'avoir un autre prêt à la banque. On remarque aussi que la variance cumulée n'augmente pas beaucoup lorsqu'on augmente le nombre de dimentions conservées.
+
+## FAMD Binaire
+
+On fait plusieurs FAMD entre les différentes variables pour mieux voir les liens entre-elles.
+
+```{r}
+# Select only usefull columns
+column_mca <- c("age_num", "job", "marital", "education", "housing", "loan")
+ndim_mca <- 2
+
+
+# Change age into number
+list_quant <- quantile(df[,"age"], probs = c(0.25, 0.5, 0.75))
+print(list_quant)
+
+age_num <- matrix(-1, nrow = nrow(df), ncol = 1)
+for (i in 1:nrow(df)){
+  value_age <- df[i,"age"]
+  if (value_age <= list_quant["25%"]){
+    age_num[i] <- "0-32"
+  }
+  else if(value_age <= list_quant["50%"]){
+    age_num[i] <- "33-38"
+  }
+  else if (value_age <= list_quant["75%"]){
+    age_num[i] <- "39-47"
+  } else {
+    age_num[i] <- "48-100+"
+  }
+}
+
+df$age_num <- age_num
+
+
+# Do the multiple MCA
+for (col1 in column_mca){
+  pos1 <- match(col1, column_mca)
+  for (col2 in column_mca){
+    pos2 <- match(col2, column_mca)
+    if (pos1 >= pos2){
+      next
+    }
+    # Isolate columns
+    cat(col1, col2, "\n")
+    col_compare <- c(col1, col2)
+    df_famd <- df[col_compare]
+    df_famd <- na.omit(df_famd)
+
+    # Do the MCA
+    res.famd <- MCA(df_famd, ncp = ndim_mca, graph = TRUE)
+  }
+}
+
+```

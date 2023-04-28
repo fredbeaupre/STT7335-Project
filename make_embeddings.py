@@ -70,26 +70,6 @@ history = model.fit_generator(train_loader, valid_loader, epochs=nb_epochs, verb
 end_training = datetime.now()
 print(f"---Finished training: time elapsed :{end_training-start_training}\n")
 
-# Predictions of original data
-pred_train, true_train = model.predict_generator(train_loader, return_ground_truth=True)
-pred_valid, true_valid = model.predict_generator(valid_loader, return_ground_truth=True)
-pred_test, true_test = model.predict_generator(test_loader, return_ground_truth=True)
-
-# Save predictions to file with ground truth
-colnames = list(train_data.bank_data.columns.values)
-for col in train_data.bank_data.columns:
-    new_name = col + "_pred"
-    colnames.append(new_name)
-
-df_embedding_train = pd.DataFrame(np.concatenate((true_train, pred_train), axis=1), columns=colnames)
-df_embedding_valid = pd.DataFrame(np.concatenate((true_valid, pred_valid), axis=1), columns=colnames)
-df_embedding_test = pd.DataFrame(np.concatenate((true_test, pred_test), axis=1), columns=colnames)
-
-df_embedding_train.to_csv("predictions_train.csv")
-df_embedding_valid.to_csv("predictions_valid.csv")
-df_embedding_test.to_csv("predictions_test.csv")
-
-
 # Plot training history
 (figs, axes) = plot_history(history, show=False)
 ax = axes[1]
@@ -101,33 +81,80 @@ plt.show()
 # plt.savefig("training_curve.jpeg", format="jpeg", dpi=500)
 
 
-# New datasets including real NA and targeting real target values
-train_data = BankDataset(path="bank_additional_clean_train.csv", target_input=False, mask_input=False, drop_na=False,
-                         scaler=train_scaler)
-valid_data = BankDataset(path="bank_additional_clean_valid.csv", target_input=False, mask_input=False, drop_na=False,
-                         scaler=train_scaler)
-test_data = BankDataset(path="bank_additional_clean_test.csv", target_input=False, mask_input=False, drop_na=False,
-                        scaler=train_scaler)
+print("---Start predictions")
+# Predictions of original data where NA have been removed
+# Used to compare fake missing data to original as masks are still applied
+pred_original_NA_rm = True
+if pred_original_NA_rm is True:
+    pred_train, true_train = model.predict_generator(train_loader, return_ground_truth=True)
+    pred_valid, true_valid = model.predict_generator(valid_loader, return_ground_truth=True)
+    pred_test, true_test = model.predict_generator(test_loader, return_ground_truth=True)
 
-# Corresponding dataloaders
-train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
-valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=False)
-test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=False)
+    # Save predictions to file with ground truth
+    colnames = list(train_data.bank_data.columns.values)
+    for col in train_data.bank_data.columns:
+        new_name = col + "_pred"
+        colnames.append(new_name)
 
-# Change model mode to predict embedding instead of target
-model.network.enable_pred_embedding()
+    df_embedding_train = pd.DataFrame(np.concatenate((true_train, pred_train), axis=1), columns=colnames)
+    df_embedding_valid = pd.DataFrame(np.concatenate((true_valid, pred_valid), axis=1), columns=colnames)
+    df_embedding_test = pd.DataFrame(np.concatenate((true_test, pred_test), axis=1), columns=colnames)
 
-# Predict embedding
-embedding_train, y_train = model.predict_generator(train_loader, return_ground_truth=True)
-embedding_valid, y_valid = model.predict_generator(valid_loader, return_ground_truth=True)
-embedding_test, y_test = model.predict_generator(test_loader, return_ground_truth=True)
+    df_embedding_train.to_csv("compare_predictions_train.csv")
+    df_embedding_valid.to_csv("compare_predictions_valid.csv")
+    df_embedding_test.to_csv("compare_predictions_test.csv")
 
-# Save embedding to file with y
-colnames = ["emb1", "emb2", "y"]
-df_embedding_train = pd.DataFrame(np.concatenate((embedding_train, y_train), axis=1), columns=colnames)
-df_embedding_valid = pd.DataFrame(np.concatenate((embedding_valid, y_valid), axis=1), columns=colnames)
-df_embedding_test = pd.DataFrame(np.concatenate((embedding_test, y_test), axis=1), columns=colnames)
 
-df_embedding_train.to_csv("embedding_train.csv")
-df_embedding_valid.to_csv("embedding_valid.csv")
-df_embedding_test.to_csv("embedding_test.csv")
+# Using masks on the missing data only, predicts the original data and also the embedding
+# Used to plot embeddings and to make predictive models from reconstructed data
+pred_real_data = True
+if pred_real_data is True:
+    # New datasets including real NA and targeting real target values
+    train_data = BankDataset(path="bank_additional_clean_train.csv", target_input=False, mask_input=False, drop_na=False,
+                             scaler=train_scaler)
+    valid_data = BankDataset(path="bank_additional_clean_valid.csv", target_input=False, mask_input=False, drop_na=False,
+                             scaler=train_scaler)
+    test_data = BankDataset(path="bank_additional_clean_test.csv", target_input=False, mask_input=False, drop_na=False,
+                            scaler=train_scaler)
+
+    # Corresponding dataloaders
+    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(dataset=test_data, batch_size=batch_size, shuffle=False)
+
+    # Predict original data including NA
+    pred_train, true_train = model.predict_generator(train_loader, return_ground_truth=True)
+    pred_valid, true_valid = model.predict_generator(valid_loader, return_ground_truth=True)
+    pred_test, true_test = model.predict_generator(test_loader, return_ground_truth=True)
+
+    # Save predictions to file with ground truth
+    colnames = list(train_data.bank_data.columns.values)
+    colnames.append("y")
+
+    df_embedding_train = pd.DataFrame(np.concatenate((pred_train, true_train), axis=1), columns=colnames)
+    df_embedding_valid = pd.DataFrame(np.concatenate((pred_valid, true_valid), axis=1), columns=colnames)
+    df_embedding_test = pd.DataFrame(np.concatenate((pred_test, true_test), axis=1), columns=colnames)
+
+    df_embedding_train.to_csv("predictions_train.csv")
+    df_embedding_valid.to_csv("predictions_valid.csv")
+    df_embedding_test.to_csv("predictions_test.csv")
+
+    # Change model mode to predict embedding instead of target
+    model.network.enable_pred_embedding()
+
+    # Predict embedding
+    embedding_train, y_train = model.predict_generator(train_loader, return_ground_truth=True)
+    embedding_valid, y_valid = model.predict_generator(valid_loader, return_ground_truth=True)
+    embedding_test, y_test = model.predict_generator(test_loader, return_ground_truth=True)
+
+    # Save embedding to file with y
+    colnames = ["emb1", "emb2", "y"]
+    df_embedding_train = pd.DataFrame(np.concatenate((embedding_train, y_train), axis=1), columns=colnames)
+    df_embedding_valid = pd.DataFrame(np.concatenate((embedding_valid, y_valid), axis=1), columns=colnames)
+    df_embedding_test = pd.DataFrame(np.concatenate((embedding_test, y_test), axis=1), columns=colnames)
+
+    df_embedding_train.to_csv("embedding_train.csv")
+    df_embedding_valid.to_csv("embedding_valid.csv")
+    df_embedding_test.to_csv("embedding_test.csv")
+
+print("---Finished predictions")
