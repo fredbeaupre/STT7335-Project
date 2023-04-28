@@ -38,21 +38,32 @@ test <- Hmisc::naclus(data_clean)
 Hmisc::naplot(test)
 
 
+### Aucun traitement - ajouter nouveau facteur
+data_clean_sansImp <- data_clean %>% 
+  mutate(
+    job = factor(ifelse(is.na(job), "NA", as.character(job))),
+    marital = factor(ifelse(is.na(marital), "NA", as.character(marital))),
+    housing = factor(ifelse(is.na(housing), "NA", as.character(housing))),
+    loan = factor(ifelse(is.na(loan), "NA", as.character(loan))),
+    education = factor(ifelse(is.na(education), "NA", as.character(education)))
+  )
+
 ### Traitement de la non réponse - Méthode traditionnelle
 
 ## Ajouter une catégorie "inconnu"
 # Comme toutes nos variables contenants des valeurs manquantes sont catégorielles, cette option est possible.
 
 ## Imputation Hot-Deck (Par la distribution)
+vars2imp <- c("education", "job", "loan", "housing", "marital")
 data_s <- data_clean %>% select(age, job, marital, education, housing, loan)
-data_s <- VIM::hotdeck(data_s, vars2imp)
-data_clean_hotdeck <- cbind("X" = data_clean$X, data_s, "y" = data_clean$y)
+data_s <- VIM::hotdeck(data_s, vars2imp) %>% select(age, job, marital, education, housing, loan)
+data_clean_hotdeck <- bind_cols("X" = data_clean$X, data_s, data_clean %>% select(-c(X, age, job, marital, education, housing, loan)))
 sum(is.na(data_clean_hotdeck))
 
 ## Imputation par régression logistique multinomiale
-data_imput <- data_clean %>% select(-c(X, y))
-colnames(data_imput)
-na_vec <- c("", "polyreg", "polyreg", "polr", "polyreg", "polyreg", "", "", "", "", "")
+#data_imput <- data_clean %>% select(-c(X, y))
+#colnames(data_imput)
+#na_vec <- c("", "polyreg", "polyreg", "polr", "polyreg", "polyreg", "", "", "", "", "")
 
 #mids <- mice(data_imput, method = na_vec, m = 1, maxit = 5)
 #data_imp <- complete(mids)
@@ -116,5 +127,6 @@ val_end$marital
 
 
 ### Save data
+write.csv(data_clean_sansImp, file = "bank_additionnal_NA2factor.csv")
 write.csv(data_clean_hotdeck, file = "bank_additionnal_hotdeckImputation.csv")
 write.csv(data_clean_mul, file = "bank_additionnal_multipleImputation.csv")
