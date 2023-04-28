@@ -95,7 +95,10 @@ def load_csv_to_pandas(datapath="./bank-additional-full.csv", drop_na=True):
 def create_dataloaders(path="./bank_additional_full.csv"):
     data = load_csv_to_pandas()
     train_data, val_data, test_data = split_dataset(data)
-    test_data.to_csv("test_data.csv", index=False)
+    test_data.to_csv(
+        "./saved_models/data2vec_classification/test_data.csv", index=False)
+    train_data.to_csv(
+        "./saved_models/data2vec_classification/train_data.csv", index=False)
     train_set = TabularBankDataset(data=train_data)
     val_set = TabularBankDataset(data=val_data)
     test_set = TabularBankDataset(data=test_data)
@@ -103,6 +106,38 @@ def create_dataloaders(path="./bank_additional_full.csv"):
     emb_dims_val = val_set.get_emb_dims()
     emb_dims_test = test_set.get_emb_dims()
     batch_size = 512
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    val_loader = torch.utils.data.DataLoader(
+        val_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    test_loader = torch.utils.data.DataLoader(
+        test_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    return (train_loader, val_loader, test_loader), (emb_dims_train, emb_dims_val, emb_dims_test)
+
+
+def create_balanced_loaders(path="./bank_additional_full.csv"):
+    data = load_csv_to_pandas()
+    print(data.shape)
+    yes_data = data[data["y"] == "yes"]
+    no_data = data[data["y"] == "no"]
+    N_yes = yes_data.shape[0]
+    no_data = no_data.sample(n=N_yes)
+    data = pd.concat([yes_data, no_data])
+    print(data.shape)
+    data = data.sample(frac=1)
+    print(data.shape)
+    train_data, val_data, test_data = split_dataset(data)
+    test_data.to_csv(
+        "./saved_models/data2vec_balanced_classification/test_data.csv", index=False)
+    train_data.to_csv(
+        "./saved_models/data2vec_balanced_classification/train_data.csv", index=False)
+    train_set = TabularBankDataset(data=train_data)
+    val_set = TabularBankDataset(data=val_data)
+    test_set = TabularBankDataset(data=test_data)
+    emb_dims_train = train_set.get_emb_dims()
+    emb_dims_val = val_set.get_emb_dims()
+    emb_dims_test = test_set.get_emb_dims()
+    batch_size = 256
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
     val_loader = torch.utils.data.DataLoader(

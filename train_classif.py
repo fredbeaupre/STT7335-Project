@@ -57,7 +57,7 @@ def train_step(model, train_loader, criterion, optimizer, device):
 def train(model, train_loader, validation_loader, optimizer, criterion, num_epochs, device):
     train_loss, val_loss = [], []
     train_acc, val_acc = [], []
-    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_classification",
+    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_balanced_classification",
                                           metric_name="validation_accuracy", best_metric_val=-1, maximize=True)
     for epoch in range(num_epochs):
         t_loss, t_acc = train_step(
@@ -93,7 +93,8 @@ def evaluate(model, test_loader, device):
 
 
 def conclude(save_dict):
-    torch.save(save_dict, "./saved_models/data2vec_classification/final_model.pth")
+    torch.save(
+        save_dict, "./saved_models/data2vec_balanced_classification/final_model.pth")
     loss = save_dict["loss"]
     val_loss = save_dict["val_loss"]
     acc = save_dict["acc"]
@@ -109,16 +110,16 @@ def conclude(save_dict):
     axs[1].set_ylabel('Accuracy')
     axs[0].set_ylabel("Loss")
     plt.legend()
-    fig.savefig("./saved_models/data2vec_classification/loss_fig.png",
+    fig.savefig("./saved_models/data2vec_balanced_classification/loss_fig.png",
                 bbox_inches="tight")
-    fig.savefig("./saved_models/data2vec_classification/loss_fig.pdf",
+    fig.savefig("./saved_models/data2vec_balanced_classification/loss_fig.pdf",
                 bbox_inches="tight", transparent=True)
 
 
 def main():
     num_epochs = 100
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    loaders, emb_dims = utils.create_dataloaders()
+    loaders, emb_dims = utils.create_balanced_loaders()
     train_loader, val_loader, test_loader = loaders
     emb_dims_train, _, _ = emb_dims
     encoder = models.FeedForwardNet(
@@ -154,7 +155,7 @@ def main():
 
     # TODO: reload best checkpoint and evaluate
     eval_checkpoint = torch.load(
-        "./saved_models/data2vec_classification/best_model.pth")
+        "./saved_models/data2vec_balanced_classification/best_model.pth")
     model.load_state_dict(eval_checkpoint["model_state_dict"])
     test_accuracy = evaluate(model, test_loader, device)
     print("Accuracy on the test set = {}".format(round(test_accuracy, 3)))
