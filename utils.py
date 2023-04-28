@@ -9,15 +9,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 
-def yes_no_to_number(value):
-    if value == "yes":
-        return 1
-    elif value == "no":
-        return 0
-    else:
-        return np.nan
-
-
 class AverageMeter:
     """Computes and stores the average and current value"""
 
@@ -88,17 +79,19 @@ def load_csv_to_pandas(datapath="./bank-additional-full.csv", drop_na=True):
     if drop_na:
         df = pd.read_csv(datapath, header=0, sep=';').dropna()
     else:
-        df = pd.read_csv(datapath, header=0, sep=';')
+        df = pd.read_csv(datapath, header=0, sep=';', na_values="unknown")
     return df
 
 
-def create_dataloaders(path="./bank_additional_full.csv"):
-    data = load_csv_to_pandas()
+def create_dataloaders(path="./bank_additional_full.csv", drop_na=False):
+    data = load_csv_to_pandas(drop_na=False)
+    if drop_na:
+        data = data.dropna()
     train_data, val_data, test_data = split_dataset(data)
     test_data.to_csv(
-        "./saved_models/data2vec_classification/test_data.csv", index=False)
+        "./saved_models/data2vec_imputation/test_data.csv", index=False)
     train_data.to_csv(
-        "./saved_models/data2vec_classification/train_data.csv", index=False)
+        "./saved_models/data2vec_imputation/train_data.csv", index=False)
     train_set = TabularBankDataset(data=train_data)
     val_set = TabularBankDataset(data=val_data)
     test_set = TabularBankDataset(data=test_data)
@@ -115,17 +108,16 @@ def create_dataloaders(path="./bank_additional_full.csv"):
     return (train_loader, val_loader, test_loader), (emb_dims_train, emb_dims_val, emb_dims_test)
 
 
-def create_balanced_loaders(path="./bank_additional_full.csv"):
-    data = load_csv_to_pandas()
-    print(data.shape)
+def create_balanced_loaders(path="./bank_additional_full.csv", drop_na=True):
+    data = load_csv_to_pandas(drop_na=False)
     yes_data = data[data["y"] == "yes"]
     no_data = data[data["y"] == "no"]
     N_yes = yes_data.shape[0]
     no_data = no_data.sample(n=N_yes)
     data = pd.concat([yes_data, no_data])
-    print(data.shape)
+    if drop_na == True:
+        data = data.dropna()
     data = data.sample(frac=1)
-    print(data.shape)
     train_data, val_data, test_data = split_dataset(data)
     test_data.to_csv(
         "./saved_models/data2vec_balanced_classification/test_data.csv", index=False)
@@ -137,7 +129,7 @@ def create_balanced_loaders(path="./bank_additional_full.csv"):
     emb_dims_train = train_set.get_emb_dims()
     emb_dims_val = val_set.get_emb_dims()
     emb_dims_test = test_set.get_emb_dims()
-    batch_size = 256
+    batch_size = 512
     train_loader = torch.utils.data.DataLoader(
         train_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
     val_loader = torch.utils.data.DataLoader(
@@ -145,6 +137,20 @@ def create_balanced_loaders(path="./bank_additional_full.csv"):
     test_loader = torch.utils.data.DataLoader(
         test_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
     return (train_loader, val_loader, test_loader), (emb_dims_train, emb_dims_val, emb_dims_test)
+
+
+def load_missing(datapath="./bank-additional-full.csv"):
+    df = pd.read_csv(datapath, sep=';',
+                     na_values='unknown')
+    df = df[df.isna().any(axis=1)]
+
+    train_set = TabularBankDataset(data=df)
+
+    emb_dims_train = train_set.get_emb_dims()
+    train_loader = torch.utils.data.DataLoader(
+        train_set, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+
+    return train_loader, emb_dims
 
 
 def omniloader(path="./bank_additional_full.csv"):
@@ -155,6 +161,16 @@ def omniloader(path="./bank_additional_full.csv"):
     dataloader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
     return dataloader, emb_dims
+
+
+def test_set_loader(path="./saved_models/data2vec_balanced_classification/test_data.csv"):
+    data = pd.read_csv(path)
+    dataset = TabularBankDataset(data=data)
+    emb_dims = dataset.get_emb_dims()
+    batch_size = 512
+    loader = torch.utils.data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=True, num_workers=1, drop_last=False)
+    return loader, emb_dims
 
 
 def split_dataset(dataset):

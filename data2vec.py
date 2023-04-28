@@ -15,6 +15,21 @@ class Data2Vec(torch.nn.Module):
 
         self.fc = torch.nn.Linear(16, 1)
 
+        # self.decoder = torch.nn.Sequential(
+        #     torch.nn.Linear(16, 100),
+        #     torch.nn.ReLU(),
+        #     torch.nn.BatchNorm1d(100),
+        #     torch.nn.Linear(100, 50),
+        #     torch.nn.ReLU(),
+        #     torch.nn.BatchNorm1d(50),
+        #     torch.nn.Linear(50, 37),
+        #     torch.nn.ReLU(),
+        #     torch.nn.BatchNorm1d(37),
+        #     torch.nn.Linear(37, 18)
+        # )
+
+        # self.decoder = torch.nn.Linear(16, 50)
+
     def ema_step(self):
         if self.ema_decay != self.ema_end_decay:
             if self.ema.num_updates >= self.ema_anneal_end_step:
@@ -31,15 +46,20 @@ class Data2Vec(torch.nn.Module):
             self.ema.step(self.encoder)
 
     def forward(self, cont_x, cat_x, target=None, task="distillation"):
+
         if task == "classification":
             # TODO: add classification head
             x = self.encoder(cont_x, cat_x, mask=False)
             x = torch.sigmoid(self.fc(x))
             return x
 
-        elif task == "reconstruction":
-            # TODO: reconstruction decoder
-            pass
+        # elif task == "reconstruction":
+        #     # TODO: reconstruction decoder
+        #     target = torch.cat((cont_x, cat_x), axis=1)
+        #     print(cont_x.shape, cat_x.shape)
+        #     x = self.encoder(cont_x, cat_x, mask=True)
+        #     x = self.decoder(x)
+        #     return x, target
 
         elif task == "distillation":
             x = self.encoder(cont_x, cat_x, mask=True)

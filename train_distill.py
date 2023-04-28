@@ -43,7 +43,7 @@ def train_step(model, train_loader, criterion, optimizer, device):
 
 def train(model, train_loader, validation_loader, optimizer, criterion, num_epochs, device):
     train_loss, val_loss = [], []
-    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_distillation",
+    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_imputation",
                                           metric_name="validation_loss", best_metric_val=np.Inf, maximize=False)
     for epoch in range(num_epochs):
         t_loss = train_step(model, train_loader, criterion, optimizer, device)
@@ -58,7 +58,8 @@ def train(model, train_loader, validation_loader, optimizer, criterion, num_epoc
 
 
 def conclude(save_dict):
-    torch.save(save_dict, "./saved_models/data2vec_distillation/final_model.pth")
+    torch.save(
+        save_dict, "./saved_models/data2vec_imputation/final_model.pth")
     loss = save_dict["loss"]
     val_loss = save_dict["val_loss"]
     epochs = np.arange(0, len(loss), 1)
@@ -69,17 +70,19 @@ def conclude(save_dict):
     plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.legend()
-    fig.savefig("./saved_models/data2vec_distillation/loss_fig.png")
-    fig.savefig("./saved_models/data2vec_distillation/loss_fig.pdf",
+    fig.savefig("./saved_models/data2vec_imputation/loss_fig.png")
+    fig.savefig("./saved_models/data2vec_imputation/loss_fig.pdf",
                 bbox_inches='tight', transparent=True)
 
 
 def main():
-    num_epochs = 1000
+    num_epochs = 500
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     loaders, emb_dims = utils.create_dataloaders()
     train_loader, val_loader, test_loader = loaders
     emb_dims_train, emb_dims_val, emb_dims_test = emb_dims
+    for dim in emb_dims:
+        print(dim)
     encoder = models.FeedForwardNet(
         emb_dims=emb_dims_train,
         num_continuous=8,

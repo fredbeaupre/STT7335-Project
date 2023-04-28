@@ -5,6 +5,31 @@ import torch
 import models
 from tqdm import tqdm
 from data2vec import Data2Vec
+import metrics
+
+
+def compute_metrics(model, dataloader, device):
+    model.eval()
+    all_preds = []
+    raw_preds = []
+    all_labels = []
+    for y, cont_x, cat_x in tqdm(dataloader, desc="Computing metrics..."):
+        y, cont_x, cat_x = y.to(device), cont_x.to(device), cat_x.to(device)
+        raw_yhat = model(cont_x, cat_x, task="classification")
+        yhat = torch.tensor(raw_yhat > 0.5)
+        all_preds.append(yhat)
+        raw_preds.append(raw_yhat)
+        all_labels.append(y)
+    all_preds = torch.cat(all_preds, dim=0).cpu().detach().numpy()
+    all_labels = torch.cat(all_labels, dim=0).cpu().detach().numpy()
+    raw_preds = torch.cat(raw_preds, dim=0).cpu().detach().numpy()
+    accuracy = metrics.compute_accuracy(all_preds, all_labels)
+    precision = metrics.compute_precision(all_preds, all_labels)
+    recall = metrics.compute_recall(all_preds, all_labels)
+    print(f"Accuracy = {accuracy}\nPrecision = {precision}\nRecall = {recall}")
+    metrics.compute_roc(raw_preds, all_labels)
+    groups = metrics.m_grouping(raw_preds, all_labels)
+    print(groups)
 
 
 def compute_accuracy(preds, labels):
@@ -57,7 +82,7 @@ def train_step(model, train_loader, criterion, optimizer, device):
 def train(model, train_loader, validation_loader, optimizer, criterion, num_epochs, device):
     train_loss, val_loss = [], []
     train_acc, val_acc = [], []
-    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_balanced_classification",
+    save_best_model = utils.SaveBestModel(save_dir="./saved_models/data2vec_classif_onlyfull_imbalanced",
                                           metric_name="validation_accuracy", best_metric_val=-1, maximize=True)
     for epoch in range(num_epochs):
         t_loss, t_acc = train_step(
@@ -94,7 +119,7 @@ def evaluate(model, test_loader, device):
 
 def conclude(save_dict):
     torch.save(
-        save_dict, "./saved_models/data2vec_balanced_classification/final_model.pth")
+        save_dict, "./saved_models/data2vec_classif_onlyfull_imbalanced/final_model.pth")
     loss = save_dict["loss"]
     val_loss = save_dict["val_loss"]
     acc = save_dict["acc"]
@@ -110,18 +135,25 @@ def conclude(save_dict):
     axs[1].set_ylabel('Accuracy')
     axs[0].set_ylabel("Loss")
     plt.legend()
-    fig.savefig("./saved_models/data2vec_balanced_classification/loss_fig.png",
+    fig.savefig("./saved_models/data2vec_classif_onlyfull_imbalanced/loss_fig.png",
                 bbox_inches="tight")
-    fig.savefig("./saved_models/data2vec_balanced_classification/loss_fig.pdf",
+    fig.savefig("./saved_models/data2vec_classif_onlyfull_imbalanced/loss_fig.pdf",
                 bbox_inches="tight", transparent=True)
 
 
 def main():
     num_epochs = 100
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    loaders, emb_dims = utils.create_balanced_loaders()
+    loaders, emb_dims = utils.create_dataloaders(drop_na=True)
     train_loader, val_loader, test_loader = loaders
+    print(len(train_loader.dataset))
     emb_dims_train, _, _ = emb_dims
+    emb_dims_train[0] = (12, 6)
+    emb_dims_train[1] = (4, 2)
+    emb_dims_train[2] = (8, 4)
+    emb_dims_train[3] = [3, 2]
+    emb_dims_train[4] = (3, 2)
+    emb_dims_train[5] = (3, 2)
     encoder = models.FeedForwardNet(
         emb_dims=emb_dims_train,
         num_continuous=8,
@@ -138,7 +170,6 @@ def main():
     criterion = torch.nn.BCELoss()
     optimizer = torch.optim.Adam(
         model.parameters(), lr=0.001, weight_decay=0.00001)
-
     (train_loss, train_acc), (val_loss, val_acc) = train(
         model, train_loader, val_loader, optimizer, criterion, num_epochs, device)
 
@@ -155,10 +186,9 @@ def main():
 
     # TODO: reload best checkpoint and evaluate
     eval_checkpoint = torch.load(
-        "./saved_models/data2vec_balanced_classification/best_model.pth")
+        "./saved_models/data2vec_classif_onlyfull_imbalanced/best_model.pth")
     model.load_state_dict(eval_checkpoint["model_state_dict"])
-    test_accuracy = evaluate(model, test_loader, device)
-    print("Accuracy on the test set = {}".format(round(test_accuracy, 3)))
+    compute_metrics(model, dataloader=test_loader, device=device)
 
 
 if __name__ == "__main__":

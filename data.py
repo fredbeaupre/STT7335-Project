@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
-import utils
 import torch
 
 
@@ -9,6 +8,15 @@ CONTINUOUS_VARS = ["age", "campaign", "previous", "emp.var.rate",
                    "cons.price.idx", "cons.conf.idx", "euribor3m", "nr.employed"]
 CATEGORICAL_VARS = ["job", "marital", "education", "default",
                     "housing", "loan", "contact", "month", "day_of_week", "poutcome"]
+
+
+def yes_no_to_number(value):
+    if value == "yes":
+        return 1
+    elif value == "no":
+        return 0
+    else:
+        return np.nan
 
 
 def embed_bank_data(df):
@@ -36,7 +44,7 @@ def prepare_dataframe(df):
 
 
 def convert_output(df, output_col):
-    df[output_col] = df[output_col].map(utils.yes_no_to_number)
+    df[output_col] = df[output_col].map(yes_no_to_number)
     return df
 
 
@@ -73,16 +81,3 @@ class TabularBankDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         return [self.y[idx], self.cont_x[idx], self.cat_x[idx]]
-
-
-def main():
-    df = utils.load_csv_to_pandas()
-    print(df.iloc[0])
-    df = remove_columns(df)
-    print(df.iloc[0])
-    df = embed_bank_data(df)
-    print(df.iloc[0])
-
-
-if __name__ == "__main__":
-    main()
